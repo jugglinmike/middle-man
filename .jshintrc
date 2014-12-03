@@ -1,0 +1,7 @@
+{
+  "strict": true,
+  "undef": true,
+  "unused": true,
+  "node": true,
+  "predef": ["-Promise"]
+}

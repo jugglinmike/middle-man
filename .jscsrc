@@ -1,0 +1,23 @@
+{
+  "plugins": [
+    "jscs-jsdoc"
+  ],
+  "disallowTrailingWhitespace": true,
+  "validateQuoteMarks": "'",
+  "validateIndentation": 2,
+  "jsDoc": {
+    "checkParamNames": true,
+    "requireParamTypes": true,
+    "checkRedundantParams": true,
+    "checkRedundantReturns": true,
+    "requireReturnTypes": true,
+    "checkTypes": "strictNativeCase",
+    "leadingUnderscoreAccess": true,
+    "checkAnnotations": {
+      "preset": "jsdoc3",
+      "extra": {
+        "file": "some"
+      }
+    }
+  }
+}
