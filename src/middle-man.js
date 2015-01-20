@@ -1,12 +1,14 @@
 'use strict';
 var http = require('http');
 var url = require('url');
+var httpProxy = require('http-proxy');
 
 var pathToRegExp = require('path-to-regexp');
 var Promise = require('bluebird');
 
 function MiddleMan() {
-  this._server = http.createServer(this._handle.bind(this));
+  this._server = http.createServer(this._onRequest.bind(this));
+  this._proxyServer = httpProxy.createProxyServer({});
   this._handlers = [];
 }
 
@@ -34,56 +36,77 @@ MiddleMan.prototype.close = function() {
   return new Promise(server.close.bind(server));
 };
 
+MiddleMan.prototype._onRequest = function(req, res) {
+  this._handle(req, res)
+    .then(function() {
+        this._proxy(req, res);
+      }.bind(this), function() {});
+};
+
+MiddleMan.prototype._proxy = function(req, res) {
+  var parts = url.parse(req.url);
+
+  delete parts.path;
+  delete parts.pathname;
+  delete parts.search;
+  delete parts.query;
+
+  // TODO: Remove this when underlying issue is resolved in http-proxy module
+  // https://github.com/nodejitsu/node-http-proxy/pull/742
+  if (req.method === 'OPTIONS' && !req.headers['content-length']) {
+    req.headers['content-length'] = '0';
+  }
+
+  process.nextTick(function() {
+    this._proxyServer.web(req, res, { target: url.format(parts) });
+  }.bind(this));
+};
+
 MiddleMan.prototype._handle = function(req, res) {
   var pathName = url.parse(req.url).pathname;
   var handlers = this._handlers;
 
-  this._handlers.filter(function(handler) {
-    return handler.method === req.method && handler.pattern.test(pathName);
-  }).reduce(function(prev, handler) {
+  return this._handlers.filter(function(handler) {
+      return handler.method === req.method && handler.pattern.test(pathName);
+    }).reduce(function(prev, handler) {
+      return prev.then(function() {
+          var index = handlers.indexOf(handler);
+          var stopChain, continueChain, chainPromise;
 
-    return prev.then(function() {
-        var index = handlers.indexOf(handler);
-        var stopChain, continueChain, chainPromise;
+          // The list of candidate handlers is created sychronously at
+          // triggering time but each handler in the list is considered for
+          // invocation asynchronously. This means that by the time a given
+          // handler is actually considered for invocation, it may have been
+          // removed by another request. This is honestly the most clear way I
+          // can think to describe it. Don't worry; there are tests for this.
+          if (index === -1) {
+            return;
+          }
 
-        // The list of candidate handlers is created sychronously at triggering
-        // time but each handler in the list is considered for invocation
-        // asynchronously. This means that by the time a given handler is
-        // actually considered for invocation, it may have been removed by
-        // another request. This is honestly the most clear way I can think to
-        // describe it. Don't worry; there are tests for this.
-        if (index === -1) {
-          return;
-        }
+          chainPromise = new Promise(function(resolve, reject) {
+            continueChain = resolve;
+            stopChain = reject;
+          });
 
-        chainPromise = new Promise(function(resolve, reject) {
-          stopChain = resolve;
-          continueChain = reject;
+          res.on('finish', function() {
+            handler.resolve();
+            stopChain();
+          });
+
+          if (handler.once) {
+            handlers.splice(index, 1);
+          }
+
+          try {
+            handler.handler.call(null, req, res, continueChain);
+          } catch (err) {
+            handler.reject(err);
+            stopChain();
+          }
+
+          return chainPromise;
         });
-
-        res.on('finish', function() {
-          handler.resolve();
-          stopChain();
-        });
-
-        if (handler.once) {
-          handlers.splice(index, 1);
-        }
-
-        try {
-          handler.handler.call(null, req, res, continueChain);
-        } catch (err) {
-          handler.reject(err);
-          stopChain();
-        }
-
-        return chainPromise;
-      });
-  }, Promise.resolve()).then(null, function() {});
-
-  // TODO: Do something with unhandled request/response pairs (which can be
-  //       recognized when the above promise reduction is resolved
-  //       successfully).
+    }, Promise.resolve());
 };
 
 MiddleMan.prototype._bind = function(options) {

@@ -3,25 +3,43 @@ var http = require('http');
 var Promise = require('bluebird');
 
 var MiddleMan = require('..');
-var port = process.env.NODE_PORT || 8033;
+var middleManPort = process.env.NODE_PORT || 8033;
+var targetPort = 4083;
 
 suite('MiddleMan', function() {
-  var middleMan;
+  var middleMan, targetServer;
 
   function request(method, path) {
     var req = http.request({
-      port: port,
-      path: path,
-      method: method
+      port: middleManPort,
+      host: 'localhost',
+      method: method,
+      path: 'http://localhost:' + targetPort + path
     });
 
-    req.end();
+    return new Promise(function(resolve, reject) {
+      req.on('error', reject);
+      req.on('response', function(res) {
+        res.on('data', function() {});
+        res.on('end', resolve);
+      });
+      req.end();
+    });
   }
+
+  suiteSetup(function(done) {
+    targetServer = http.createServer(function(req, res) { res.end(); });
+    targetServer.listen(targetPort, done);
+  });
+
+  suiteTeardown(function(done) {
+    targetServer.close(done);
+  });
 
   setup(function() {
     middleMan = new MiddleMan();
 
-    return middleMan.listen(port);
+    return middleMan.listen(middleManPort);
   });
 
   teardown(function() {
@@ -29,7 +47,6 @@ suite('MiddleMan', function() {
   });
 
   suite('#once', function() {
-
     suite('promise behavior', function() {
       test('resolved when response ends synchronously', function() {
         var count = 0;
@@ -93,6 +110,18 @@ suite('MiddleMan', function() {
           request('GET', '/');
         });
       });
+    });
+
+    test('passes through requests with no matching handler', function() {
+      var targetReceived = 0;
+
+      targetServer.on('request', function() {
+        targetReceived++;
+      });
+
+      return request('GET', '/').then(function() {
+          assert.equal(targetReceived, 1);
+        });
     });
 
     test('ignores method name character case', function() {
