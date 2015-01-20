@@ -112,6 +112,23 @@ suite('MiddleMan', function() {
       });
     });
 
+    test('parses url parts', function() {
+      return new Promise(function(resolve) {
+          middleMan.once('GET', /.*/, function(req, res) {
+            assert.equal(req.host, 'localhost:' + targetPort);
+            assert.equal(req.hostname, 'localhost');
+            assert.equal(req.pathname, '/some-path');
+            assert.equal(req.port, targetPort);
+            assert.equal(req.protocol, 'http:');
+            assert.deepEqual(req.query, { attr1: '23', attr2: '45' });
+            res.end();
+            resolve();
+          });
+
+          request('GET', '/some-path?attr2=45&attr1=23');
+        });
+    });
+
     test('passes through requests with no matching handler', function() {
       var targetReceived = 0;
 

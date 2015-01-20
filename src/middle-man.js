@@ -63,11 +63,18 @@ MiddleMan.prototype._proxy = function(req, res) {
 };
 
 MiddleMan.prototype._handle = function(req, res) {
-  var pathName = url.parse(req.url).pathname;
   var handlers = this._handlers;
+  var parts = url.parse(req.url, true);
+  req.host = parts.host;
+  req.hostname = parts.hostname;
+  req.pathname = parts.pathname;
+  req.port = parts.port;
+  req.protocol = parts.protocol;
+  req.query = parts.query;
 
   return this._handlers.filter(function(handler) {
-      return handler.method === req.method && handler.pattern.test(pathName);
+      return handler.method === req.method &&
+        handler.pattern.test(req.pathname);
     }).reduce(function(prev, handler) {
       return prev.then(function() {
           var index = handlers.indexOf(handler);
