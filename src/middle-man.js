@@ -1,15 +1,44 @@
 'use strict';
+var http = require('http');
 var url = require('url');
 
 var pathToRegExp = require('path-to-regexp');
 var Promise = require('bluebird');
-var handlers = [];
 
-exports.handle = handle;
-function handle(req, res) {
+function MiddleMan() {
+  this._server = http.createServer(this._handle.bind(this));
+  this._handlers = [];
+}
+
+module.exports = MiddleMan;
+
+MiddleMan.prototype.listen = function(port, host) {
+  var server = this._server;
+
+  host = host || '127.0.0.1';
+
+  return new Promise(function(resolve, reject) {
+    server.listen(port, host, function(err) {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
+};
+
+MiddleMan.prototype.close = function() {
+  var server = this._server;
+  return new Promise(server.close.bind(server));
+};
+
+MiddleMan.prototype._handle = function(req, res) {
   var pathName = url.parse(req.url).pathname;
+  var handlers = this._handlers;
 
-  handlers.filter(function(handler) {
+  this._handlers.filter(function(handler) {
     return handler.method === req.method && handler.pattern.test(pathName);
   }).reduce(function(prev, handler) {
 
@@ -55,9 +84,9 @@ function handle(req, res) {
   // TODO: Do something with unhandled request/response pairs (which can be
   //       recognized when the above promise reduction is resolved
   //       successfully).
-}
+};
 
-exports._bind = function(options) {
+MiddleMan.prototype._bind = function(options) {
   var uppercaseMethod = options.method.toUpperCase();
   var handler;
 
@@ -68,7 +97,7 @@ exports._bind = function(options) {
     handler: options.handler
   };
 
-  handlers.push(handler);
+  this._handlers.push(handler);
 
   handler.promise = new Promise(function(resolve, reject) {
     handler.resolve = resolve;
@@ -78,16 +107,16 @@ exports._bind = function(options) {
   return handler.promise;
 };
 
-exports.on = function(method, route, handler) {
-  exports._bind({
+MiddleMan.prototype.on = function(method, route, handler) {
+  this._bind({
     method: method,
     route: route,
     handler: handler
   });
 };
 
-exports.once = function(method, route, handler) {
-  return exports._bind({
+MiddleMan.prototype.once = function(method, route, handler) {
+  return this._bind({
     once: true,
     method: method,
     route: route,

@@ -1,34 +1,31 @@
 'use strict';
 var http = require('http');
-var path = require('path');
 var Promise = require('bluebird');
 
-var MiddleMan;
-var moduleId = '..';
+var MiddleMan = require('..');
+var port = process.env.NODE_PORT || 8033;
 
 suite('MiddleMan', function() {
-  var req, res;
+  var middleMan;
+
+  function request(method, path) {
+    var req = http.request({
+      port: port,
+      path: path,
+      method: method
+    });
+
+    req.end();
+  }
 
   setup(function() {
-    var _end;
+    middleMan = new MiddleMan();
 
-    MiddleMan = require(moduleId);
-
-    req = new http.IncomingMessage();
-    res = new http.ServerResponse({});
-
-    // Simulate `finish` event
-    _end = res.end;
-    res.end = function() {
-      var result = _end.apply(this, arguments);
-      this.emit('finish');
-      return result;
-    };
+    return middleMan.listen(port);
   });
 
-  // TODO: Remove this when MiddleMan is no longer a singleton
   teardown(function() {
-    delete require.cache[path.resolve(moduleId)];
+    middleMan.close();
   });
 
   suite('#once', function() {
@@ -38,10 +35,7 @@ suite('MiddleMan', function() {
         var count = 0;
         var prms;
 
-        req.method = 'GET';
-        req.url = 'http://bocoup.com';
-
-        prms = MiddleMan.once('GET', /.*/, function(req, res) {
+        prms = middleMan.once('GET', /.*/, function(req, res) {
           count++;
 
           res.end();
@@ -53,7 +47,7 @@ suite('MiddleMan', function() {
             resolve();
           }, reject);
 
-          MiddleMan.handle(req, res);
+          request('GET', '/');
         });
       });
 
@@ -61,10 +55,7 @@ suite('MiddleMan', function() {
         var count = 0;
         var prms;
 
-        req.method = 'GET';
-        req.url = 'http://bocoup.com';
-
-        prms = MiddleMan.once('GET', /.*/, function(req, res) {
+        prms = middleMan.once('GET', /.*/, function(req, res) {
           count++;
 
           setTimeout(function() {
@@ -79,7 +70,7 @@ suite('MiddleMan', function() {
             resolve();
           }, reject);
 
-          MiddleMan.handle(req, res);
+          request('GET', '/');
         });
       });
 
@@ -87,10 +78,7 @@ suite('MiddleMan', function() {
         var err = new Error();
         var prms;
 
-        req.method = 'GET';
-        req.url = 'http://bocoup.com';
-
-        prms = MiddleMan.once('GET', /.*/, function() {
+        prms = middleMan.once('GET', /.*/, function() {
           throw err;
         });
 
@@ -102,45 +90,40 @@ suite('MiddleMan', function() {
             resolve();
           });
 
-          MiddleMan.handle(req, res);
+          request('GET', '/');
         });
       });
     });
 
     test('ignores method name character case', function() {
-      req.method = 'GET';
-      req.url = 'http://bocoup.com';
-
       return new Promise(function(resolve) {
-        MiddleMan.once('gEt', /.*/, function(req, res) {
+        middleMan.once('gEt', /.*/, function(req, res) {
           res.end();
           resolve();
         });
 
-        MiddleMan.handle(req, res);
+        request('GET', '/');
       });
     });
 
     test('Only invokes handlers bound via `once` one time', function() {
       var count = 0;
-      req.method = 'GET';
-      req.url = 'http://bocoup.com';
 
-      MiddleMan.once('GET', /.*/, function(req, res) {
+      middleMan.once('GET', /.*/, function(req, res) {
         count++;
 
         res.end();
       });
 
       return new Promise(function(resolve) {
-        MiddleMan.once('GET', /.*/, function(req, res) {
+        middleMan.once('GET', /.*/, function(req, res) {
           assert.equal(count, 1);
           res.end();
           resolve();
         });
 
-        MiddleMan.handle(req, res);
-        MiddleMan.handle(req, res);
+        request('GET', '/');
+        request('GET', '/');
       });
     });
 
@@ -150,59 +133,57 @@ suite('MiddleMan', function() {
       setup(function() {
         firstCount = 0;
         secondCount = 0;
-        req.method = 'GET';
-        req.url = 'http://bocoup.com';
       });
 
       test('synchronous', function() {
-        MiddleMan.once('GET', /.*/, function(req, res, next) {
+        middleMan.once('GET', /.*/, function(req, res, next) {
           firstCount++;
 
           next();
         });
 
-        MiddleMan.once('GET', /.*/, function(req, res) {
+        middleMan.once('GET', /.*/, function(req, res) {
           secondCount++;
 
           res.end();
         });
 
         return new Promise(function(resolve) {
-          MiddleMan.once('GET', /.*/, function(req, res) {
+          middleMan.once('GET', /.*/, function(req, res) {
             assert.equal(firstCount, 1);
             assert.equal(secondCount, 1);
             res.end();
             resolve();
           });
 
-          MiddleMan.handle(req, res);
-          MiddleMan.handle(req, res);
+          request('GET', '/');
+          request('GET', '/');
         });
       });
 
       test('asynchronous', function() {
-        MiddleMan.once('GET', /.*/, function(req, res, next) {
+        middleMan.once('GET', /.*/, function(req, res, next) {
           firstCount++;
 
           setTimeout(next, 0);
         });
 
-        MiddleMan.once('GET', /.*/, function(req, res) {
+        middleMan.once('GET', /.*/, function(req, res) {
           secondCount++;
 
           res.end();
         });
 
         return new Promise(function(resolve) {
-          MiddleMan.once('GET', /.*/, function(req, res) {
+          middleMan.once('GET', /.*/, function(req, res) {
             assert.equal(firstCount, 1);
             assert.equal(secondCount, 1);
             res.end();
             resolve();
           });
 
-          MiddleMan.handle(req, res);
-          MiddleMan.handle(req, res);
+          request('GET', '/');
+          request('GET', '/');
         });
       });
     });
