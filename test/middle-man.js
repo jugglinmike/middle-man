@@ -234,4 +234,30 @@ suite('MiddleMan', function() {
       });
     });
   });
+
+  suite('#off', function() {
+    test('removes all listeners', function(done) {
+      var count = 0;
+      middleMan.once('GET', /.*/, function(req, res) {
+        count++;
+        res.end();
+      });
+      middleMan.once('GET', /.*/, function(req, res) {
+        count++;
+        res.end();
+      });
+
+      middleMan.off();
+
+      middleMan.once('GET', /.*/, function(req, res) {
+        count++;
+        res.end();
+        assert.equal(count, 1);
+        done();
+      });
+
+      request('GET', '/');
+    });
+  });
+
 });

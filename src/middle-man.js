@@ -153,3 +153,7 @@ MiddleMan.prototype.once = function(method, route, handler) {
     handler: handler
   });
 };
+
+MiddleMan.prototype.off = function() {
+  this._handlers.length = 0;
+};
