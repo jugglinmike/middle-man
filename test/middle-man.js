@@ -173,14 +173,42 @@ suite('MiddleMan', function() {
         });
     });
 
-    test('ignores method name character case', function() {
-      return new Promise(function(resolve) {
-        middleMan.once('gEt', /.*/, function(req, res) {
-          res.end();
-          resolve();
+    suite('method matching', function() {
+      test('ignores method name character case', function() {
+        return new Promise(function(resolve) {
+          middleMan.once('gEt', /.*/, function(req, res) {
+            res.end();
+            resolve();
+          });
+
+          request('GET', '/');
+        });
+      });
+
+      test('only attempts matching handlers', function(done) {
+        var getCount = 0;
+
+        middleMan.once('GET', /.*/, function(req, res, next) {
+          getCount++;
+          next();
         });
 
-        request('GET', '/');
+        middleMan.once('PUT', /.*/, function(req, res) {
+          assert.equal(getCount, 0);
+          res.end();
+          done();
+        });
+
+        request('PUT', '/');
+      });
+
+      test('`*` method catch-all', function(done) {
+        middleMan.once('*', /.*/, function(req, res) {
+          res.end();
+          done();
+        });
+
+        request('POST', '/');
       });
     });
 

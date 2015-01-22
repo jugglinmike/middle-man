@@ -73,7 +73,7 @@ MiddleMan.prototype._handle = function(req, res) {
   req.query = parts.query;
 
   return this._handlers.filter(function(handler) {
-      return handler.method === req.method &&
+      return (handler.method === req.method || handler.method === '*') &&
         handler.pattern.test(req.pathname);
     }).reduce(function(prev, handler) {
       return prev.then(function() {
