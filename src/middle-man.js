@@ -78,7 +78,7 @@ MiddleMan.prototype._handle = function(req, res) {
     }).reduce(function(prev, handler) {
       return prev.then(function() {
           var index = handlers.indexOf(handler);
-          var stopChain, continueChain, chainPromise;
+          var stopChain, continueChain, chainPromise, match;
 
           // The list of candidate handlers is created sychronously at
           // triggering time but each handler in the list is considered for
@@ -104,6 +104,13 @@ MiddleMan.prototype._handle = function(req, res) {
             handlers.splice(index, 1);
           }
 
+          match = handler.pattern.exec(req.pathname);
+
+          req.params = {};
+          handler.keys.forEach(function(key, idx) {
+            req.params[key.name] = match[idx + 1];
+          });
+
           try {
             handler.handler.call(null, req, res, continueChain);
           } catch (err) {
@@ -118,12 +125,14 @@ MiddleMan.prototype._handle = function(req, res) {
 
 MiddleMan.prototype._bind = function(options) {
   var uppercaseMethod = options.method.toUpperCase();
+  var keys = [];
   var handler;
 
   handler = {
     once: options.once,
     method: uppercaseMethod,
-    pattern: pathToRegExp(options.route),
+    pattern: pathToRegExp(options.route, keys),
+    keys: keys,
     handler: options.handler
   };
 

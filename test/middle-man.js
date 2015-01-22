@@ -112,21 +112,53 @@ suite('MiddleMan', function() {
       });
     });
 
-    test('parses url parts', function() {
-      return new Promise(function(resolve) {
-          middleMan.once('GET', /.*/, function(req, res) {
-            assert.equal(req.host, 'localhost:' + targetPort);
-            assert.equal(req.hostname, 'localhost');
-            assert.equal(req.pathname, '/some-path');
-            assert.equal(req.port, targetPort);
-            assert.equal(req.protocol, 'http:');
-            assert.deepEqual(req.query, { attr1: '23', attr2: '45' });
-            res.end();
-            resolve();
-          });
+    suite('url parsing', function() {
+      test('url parts', function() {
+        return new Promise(function(resolve) {
+            middleMan.once('GET', /.*/, function(req, res) {
+              assert.equal(req.host, 'localhost:' + targetPort);
+              assert.equal(req.hostname, 'localhost');
+              assert.equal(req.pathname, '/some-path');
+              assert.equal(req.port, targetPort);
+              assert.equal(req.protocol, 'http:');
+              assert.deepEqual(req.query, { attr1: '23', attr2: '45' });
+              res.end();
+              resolve();
+            });
 
-          request('GET', '/some-path?attr2=45&attr1=23');
+            request('GET', '/some-path?attr2=45&attr1=23');
+          });
+      });
+
+      test('path splats', function(done) {
+        middleMan.once('GET', '/something/:id', function(req, res) {
+          assert.equal(req.params.id, '45');
+          res.end();
+          done();
         });
+
+        request('GET', '/something/45');
+      });
+
+      test('handler isolation', function(done) {
+        var firstCalled = false;
+        middleMan.once('GET', '/:foo/:bar', function(req, res, next) {
+          firstCalled = true;
+
+          assert.deepEqual(req.params, { foo: 'michael', bar: 'jordan' });
+          next();
+        });
+
+        middleMan.once('GET', '/:bar/:baz', function(req, res) {
+          assert.ok(firstCalled);
+          assert.deepEqual(req.params, { bar: 'michael', baz: 'jordan' });
+
+          res.end();
+          done();
+        });
+
+        request('GET', '/michael/jordan');
+      });
     });
 
     test('passes through requests with no matching handler', function() {
