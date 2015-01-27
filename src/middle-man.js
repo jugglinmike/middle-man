@@ -163,6 +163,25 @@ MiddleMan.prototype.once = function(method, route, handler) {
   });
 };
 
-MiddleMan.prototype.off = function() {
-  this._handlers.length = 0;
+/**
+ * Remove all handlers or one specific handler.
+ *
+ * @param {string} [method] request method for which to remove a specific
+ *                          handler function
+ * @param {function} [handler] handler function to remove
+ */
+MiddleMan.prototype.off = function(method, handler) {
+  if (arguments.length === 0) {
+    this._handlers.length = 0;
+    return;
+  }
+
+  method = method.toUpperCase();
+
+  this._handlers.some(function(obj, index, handlers) {
+    if (obj.method === method && obj.handler === handler) {
+      handlers.splice(index, 1);
+      return true;
+    }
+  });
 };

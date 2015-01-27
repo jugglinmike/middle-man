@@ -318,6 +318,62 @@ suite('MiddleMan', function() {
 
       request('GET', '/');
     });
+
+    test('removes specified with request method/handler pair', function(done) {
+      var count = 0;
+      var handler = function(req, res) {
+        count++;
+        res.end();
+      };
+
+      middleMan.once('GET', /.*/, handler);
+
+      middleMan.once('GET', /.*/, function(req, res) {
+        count++;
+        res.end();
+        assert.equal(count, 1);
+        done();
+      });
+
+      middleMan.off('GET', handler);
+
+      request('GET', '/');
+    });
+
+    test('removes specified with request method/handler pair (case insensitive)', function(done) {
+      var count = 0;
+      var handler = function(req, res) {
+        count++;
+        res.end();
+      };
+
+      middleMan.once('GET', /.*/, handler);
+
+      middleMan.once('GET', /.*/, function(req, res) {
+        count++;
+        res.end();
+        assert.equal(count, 1);
+        done();
+      });
+
+      middleMan.off('get', handler);
+
+      request('GET', '/');
+    });
+
+    test('does not remove handler when used for another request method', function(done) {
+      var handler = function(req, res) {
+        res.end();
+        done();
+      };
+
+      middleMan.once('POST', /.*/, handler);
+      middleMan.once('GET', /.*/, handler);
+
+      middleMan.off('GET', handler);
+
+      request('POST', '/');
+    });
   });
 
 });
