@@ -168,7 +168,7 @@ MiddleMan.prototype.once = function(method, route, handler) {
  *
  * @param {string} [method] request method for which to remove a specific
  *                          handler function
- * @param {function} [handler] handler function to remove
+ * @param {Function} [handler] handler function to remove
  */
 MiddleMan.prototype.off = function(method, handler) {
   if (arguments.length === 0) {
