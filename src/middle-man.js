@@ -33,7 +33,15 @@ MiddleMan.prototype.listen = function(port, host) {
 
 MiddleMan.prototype.close = function() {
   var server = this._server;
-  return new Promise(server.close.bind(server));
+  return new Promise(function(resolve, reject) {
+      server.close(function(err) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
 };
 
 MiddleMan.prototype._onRequest = function(req, res) {
