@@ -96,7 +96,11 @@ MiddleMan.prototype._handle = function(req, res) {
           });
 
           res.on('finish', function() {
-            handler.resolve();
+            if (handler.once) {
+              handler.resolve();
+              delete handler.resolve;
+              delete handler.reject;
+            }
             stopChain();
           });
 
@@ -114,7 +118,11 @@ MiddleMan.prototype._handle = function(req, res) {
           try {
             handler.handler.call(null, req, res, continueChain);
           } catch (err) {
-            handler.reject(err);
+            if (handler.once) {
+              handler.reject(err);
+              delete handler.resolve;
+              delete handler.reject;
+            }
             stopChain();
           }
 
