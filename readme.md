@@ -26,6 +26,13 @@ simple, [Express](http://expressjs.com/)-inspired API, test writers can control
 exactly how web requests are handled in the context of the current-running UI
 tests.
 
+## Installation
+
+MiddleMan is a [Node.js](https://nodejs.org/) module and is registered on
+[npm](https://www.npmjs.org/) as "middle-man". Install it via:
+
+    $ npm install middle-man
+
 ## Usage
 
 **Initialization** This tool is intended for use in
