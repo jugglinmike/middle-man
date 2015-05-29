@@ -1,7 +1,7 @@
 {
   "name": "middle-man",
   "version": "0.1.0",
-  "description": "A scriptable proxy server",
+  "description": "A scriptable HTTP proxy, designed for use in UI tests for web applications.",
   "main": "src/middle-man",
   "directories": {
     "test": "test"
