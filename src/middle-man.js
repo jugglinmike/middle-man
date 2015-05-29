@@ -216,6 +216,11 @@ MiddleMan.prototype._bind = function(options) {
  *                               property name; values that match kleene-star
  *                               or regular expression groups will be defined
  *                               using numeric indices)
+ *                             Additionally, if the handler specifies a third
+ *                             parameter, a "next" function will be provided.
+ *                             In this case, no further handlers will be called
+ *                             (and the request will *not* be forwarded) until
+ *                             the function is invoked.
  */
 MiddleMan.prototype.on = function(method, route, handler) {
   this._bind({
@@ -232,6 +237,10 @@ MiddleMan.prototype.on = function(method, route, handler) {
  * @param {string} method - See MiddleMan#on
  * @param {string|RegExp} route - See MiddleMan#on
  * @param {Function} handler - See MiddleMan#on
+ *
+ * @returns {Promise} resolved when the handler is complete (this is signaled
+ *                    by closing the request or by invoking the optional third
+ *                    parameter supplied to the handler)
  */
 MiddleMan.prototype.once = function(method, route, handler) {
   return this._bind({
