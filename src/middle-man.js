@@ -6,6 +6,11 @@ var httpProxy = require('http-proxy');
 var pathToRegExp = require('path-to-regexp');
 var Promise = require('bluebird');
 
+/**
+ * Create a proxy instance
+ *
+ * @constructor
+ */
 function MiddleMan() {
   this._server = http.createServer(this._onRequest.bind(this));
   this._proxyServer = httpProxy.createProxyServer({});
@@ -14,6 +19,14 @@ function MiddleMan() {
 
 module.exports = MiddleMan;
 
+/**
+ * Bind to network traffic on a given address
+ *
+ * @param {number} port
+ * @param {string} [host=127.0.0.1]
+ *
+ * @returns {Promise}
+ */
 MiddleMan.prototype.listen = function(port, host) {
   var server = this._server;
 
@@ -31,6 +44,11 @@ MiddleMan.prototype.listen = function(port, host) {
   });
 };
 
+/**
+ * Cease listening to network traffic
+ *
+ * @returns {Promise}
+ */
 MiddleMan.prototype.close = function() {
   var server = this._server;
   return new Promise(function(resolve, reject) {
@@ -44,6 +62,9 @@ MiddleMan.prototype.close = function() {
     });
 };
 
+/**
+ * @private
+ */
 MiddleMan.prototype._onRequest = function(req, res) {
   this._handle(req, res)
     .then(function() {
@@ -51,6 +72,9 @@ MiddleMan.prototype._onRequest = function(req, res) {
       }.bind(this), function() {});
 };
 
+/**
+ * @private
+ */
 MiddleMan.prototype._proxy = function(req, res) {
   var parts = url.parse(req.url);
 
@@ -70,6 +94,9 @@ MiddleMan.prototype._proxy = function(req, res) {
   }.bind(this));
 };
 
+/**
+ * @private
+ */
 MiddleMan.prototype._handle = function(req, res) {
   var handlers = this._handlers;
   var parts = url.parse(req.url, true);
@@ -139,6 +166,9 @@ MiddleMan.prototype._handle = function(req, res) {
     }, Promise.resolve());
 };
 
+/**
+ * @private
+ */
 MiddleMan.prototype._bind = function(options) {
   var uppercaseMethod = options.method.toUpperCase();
   var keys = [];
@@ -162,6 +192,31 @@ MiddleMan.prototype._bind = function(options) {
   return handler.promise;
 };
 
+/**
+ * Register a function to be invoked in response to every HTTP request that
+ * satisfies some criteria.
+ *
+ * @param {string} method - HTTP method to respond to. The value '*' may be
+ *                          used to indicate "all methods"
+ * @param {string|RegeExp} route - Pattern describing which URL paths to
+ *                                 respond to. Strings may use the keene-star
+ *                                 operator, as in:
+ *                                     '/dir/.*'
+ *                                 and "splats", as in:
+ *                                     '/dir/:aName'
+ * @param {Function} handler - function to invoke for all matching requests.
+ *                             This will be invoked with the Node.js request/
+ *                             response pair. The request will be augmented to
+ *                             include properties for:
+ *                             - URL parts (host, hostname, pathname, port,
+ *                               protocol, and query)
+ *                             - URL pattern matches on the `params` attribute
+ *                               (values that match splats will be defined on
+ *                               the object using the splat value as the
+ *                               property name; values that match kleene-star
+ *                               or regular expression groups will be defined
+ *                               using numeric indices)
+ */
 MiddleMan.prototype.on = function(method, route, handler) {
   this._bind({
     method: method,
@@ -170,6 +225,14 @@ MiddleMan.prototype.on = function(method, route, handler) {
   });
 };
 
+/**
+ * Register a function to be invoked in response to the next HTTP request that
+ * satisfies some criteria. The method signature is identical to MiddleMan#on.
+ *
+ * @param {string} method - See MiddleMan#on
+ * @param {string|RegExp} route - See MiddleMan#on
+ * @param {Function} handler - See MiddleMan#on
+ */
 MiddleMan.prototype.once = function(method, route, handler) {
   return this._bind({
     once: true,
